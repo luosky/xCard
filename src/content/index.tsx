@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
-import { X, Download, Copy, Paintbrush, Palette, Sun, Moon, AppWindowMac, CheckCircle, AlertCircle, Grid } from 'lucide-react';
+import { X, Download, Copy, Paintbrush, Palette, Sun, Moon, AppWindowMac, Type, CheckCircle, AlertCircle, Grid } from 'lucide-react';
 import { toPng, toBlob } from 'html-to-image';
 import { t } from './i18n';
 import './content.css';
@@ -91,6 +91,12 @@ const BACKGROUNDS = [
 ];
 
 const TEXTURES = ['grid', 'dots', 'lines', 'wave'];
+
+const FONT_SCALES = {
+    'A': 1,
+    'A+': 1.2,
+    'A++': 1.4
+};
 
 const PADDINGS = {
     S: '30px',
@@ -419,6 +425,7 @@ const ToggleSwitch = ({ active, onClick }: { active: boolean, onClick: () => voi
 const EditorOverlay = ({ data, onClose }: { data: TweetData, onClose: () => void }) => {
     const [background, setBackground] = useState(BACKGROUNDS[0]);
     const [padding, setPadding] = useState<keyof typeof PADDINGS>('M');
+    const [fontScale, setFontScale] = useState<keyof typeof FONT_SCALES>('A');
     const [theme, setTheme] = useState<'light' | 'dark' | 'glass'>(getTwitterTheme() === 'light' ? 'light' : 'dark');
     const [isExporting, setIsExporting] = useState(false);
     const [simulateLiked, setSimulateLiked] = useState(false);
@@ -654,7 +661,10 @@ const EditorOverlay = ({ data, onClose }: { data: TweetData, onClose: () => void
                             <div className={`xcard-bg-glow xcard-glow-1`} />
                             <div className={`xcard-bg-glow xcard-glow-2`} />
 
-                            <div className={`xcard-tweet-card ${theme === 'dark' ? 'xcard-dark' : theme === 'glass' ? 'xcard-glass' : ''} ${captureMode === 'background-only' ? 'xcard-hide-content' : ''}`}>
+                            <div
+                                className={`xcard-tweet-card ${theme === 'dark' ? 'xcard-dark' : theme === 'glass' ? 'xcard-glass' : ''} ${captureMode === 'background-only' ? 'xcard-hide-content' : ''}`}
+                                style={{ '--xcard-fs': FONT_SCALES[fontScale] } as React.CSSProperties}
+                            >
 
                                 {/* FAKE BLUR BACKGROUND LAYER (Only visible during 2nd pass of export) */}
                                 {glassBackground && (
@@ -743,7 +753,7 @@ const EditorOverlay = ({ data, onClose }: { data: TweetData, onClose: () => void
                                                 alt={data.quotedTweet.displayName}
                                             />
                                             <div className="xcard-user-info" style={{ flexDirection: 'row', alignItems: 'center', gap: '2px' }}>
-                                                <span className="xcard-display-name" style={{ fontSize: '14px' }}>{data.quotedTweet.displayName}</span>
+                                                <span className="xcard-display-name" style={{ fontSize: 'calc(14px * var(--xcard-fs, 1))' }}>{data.quotedTweet.displayName}</span>
                                                 {data.quotedTweet.verificationType !== 'none' && (
                                                     <XIcon type={data.quotedTweet.verificationType === 'gold' ? 'verifiedGold' : 'verifiedBlue'} size={14} />
                                                 )}
@@ -764,7 +774,7 @@ const EditorOverlay = ({ data, onClose }: { data: TweetData, onClose: () => void
 
                                             {/* Right side: Content */}
                                             <div style={{ flex: 1, minWidth: 0 }}>
-                                                <div className="xcard-tweet-content" style={{ fontSize: '14px', marginTop: '0' }} dangerouslySetInnerHTML={{ __html: data.quotedTweet.content }} />
+                                                <div className="xcard-tweet-content" style={{ fontSize: 'calc(14px * var(--xcard-fs, 1))', marginTop: '0' }} dangerouslySetInnerHTML={{ __html: data.quotedTweet.content }} />
                                             </div>
                                         </div>
                                     </div>
@@ -851,6 +861,13 @@ const EditorOverlay = ({ data, onClose }: { data: TweetData, onClose: () => void
                                 <button className={padding === 'S' ? 'active' : ''} onClick={() => setPadding('S')}>S</button>
                                 <button className={padding === 'M' ? 'active' : ''} onClick={() => setPadding('M')}>M</button>
                                 <button className={padding === 'L' ? 'active' : ''} onClick={() => setPadding('L')}>L</button>
+                            </div>
+                            <div className="xcard-toggle-group">
+                                {(Object.keys(FONT_SCALES) as (keyof typeof FONT_SCALES)[]).map(k => (
+                                    <button key={k} className={fontScale === k ? 'active' : ''} onClick={() => setFontScale(k)}>
+                                        <Type size={14} /> <span>{k}</span>
+                                    </button>
+                                ))}
                             </div>
                             <div className="xcard-toggle-group">
                                 <button className={theme === 'light' ? 'active' : ''} onClick={() => setTheme('light')}>
