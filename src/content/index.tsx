@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { X, Download, Copy, Paintbrush, Palette, Sun, Moon, AppWindowMac, Type, CheckCircle, AlertCircle, Grid } from 'lucide-react';
 import { toPng, toBlob } from 'html-to-image';
@@ -94,9 +94,19 @@ const TEXTURES = ['grid', 'dots', 'lines', 'wave'];
 
 const FONT_SCALES = {
     'A': 1,
-    'A+': 1.2,
-    'A++': 1.4
+    'A+': 1.3,
+    'A++': 1.6,
+    'A+++': 2
 };
+type FontScaleOption = 'auto' | keyof typeof FONT_SCALES;
+
+// Auto font fit: shared images are shown scaled to fit a phone screen, so the
+// on-screen text size is fontSize * min(screenW / imageW, screenH / imageH).
+// Try font scales x card widths and keep the layout that maximizes it.
+const BASE_CARD_WIDTH = 600;
+const AUTO_SCALES = [1, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2];
+const AUTO_WIDTHS = [600, 650, 700, 750, 800, 850, 900];
+const VIEWER_ASPECT = 1.8; // usable height / width of a phone image viewer
 
 const PADDINGS = {
     S: '30px',
@@ -425,7 +435,11 @@ const ToggleSwitch = ({ active, onClick }: { active: boolean, onClick: () => voi
 const EditorOverlay = ({ data, onClose }: { data: TweetData, onClose: () => void }) => {
     const [background, setBackground] = useState(BACKGROUNDS[0]);
     const [padding, setPadding] = useState<keyof typeof PADDINGS>('M');
-    const [fontScale, setFontScale] = useState<keyof typeof FONT_SCALES>('A');
+    const [fontScale, setFontScale] = useState<FontScaleOption>('auto');
+    const [autoFit, setAutoFit] = useState({ scale: 1, width: BASE_CARD_WIDTH });
+    const [layoutTick, setLayoutTick] = useState(0);
+    const cardScale = fontScale === 'auto' ? autoFit.scale : FONT_SCALES[fontScale];
+    const cardWidth = fontScale === 'auto' ? autoFit.width : BASE_CARD_WIDTH;
     const [theme, setTheme] = useState<'light' | 'dark' | 'glass'>(getTwitterTheme() === 'light' ? 'light' : 'dark');
     const [isExporting, setIsExporting] = useState(false);
     const [simulateLiked, setSimulateLiked] = useState(false);
@@ -496,6 +510,36 @@ const EditorOverlay = ({ data, onClose }: { data: TweetData, onClose: () => void
         };
         processImages();
     }, [data]);
+
+    // Auto font fit: measure candidate layouts directly on the DOM, then commit the best one.
+    useLayoutEffect(() => {
+        if (fontScale !== 'auto' || !cardRef.current) return;
+        const container = cardRef.current;
+        const card = container.querySelector('.xcard-tweet-card') as HTMLElement | null;
+        if (!card) return;
+        const measured = transparentExport ? card : container;
+        const prevFs = card.style.getPropertyValue('--xcard-fs');
+        const prevW = card.style.getPropertyValue('--xcard-w');
+
+        let best = { scale: 1, width: BASE_CARD_WIDTH, score: -1 };
+        for (const width of AUTO_WIDTHS) {
+            for (const scale of AUTO_SCALES) {
+                card.style.setProperty('--xcard-fs', String(scale));
+                card.style.setProperty('--xcard-w', `${width}px`);
+                const w = measured.offsetWidth;
+                const h = measured.offsetHeight;
+                if (!w || !h) continue;
+                const score = scale * Math.min(1 / w, VIEWER_ASPECT / h);
+                if (score > best.score * 1.001) best = { scale, width, score };
+            }
+        }
+
+        card.style.setProperty('--xcard-fs', prevFs);
+        card.style.setProperty('--xcard-w', prevW);
+        if (best.score > 0) {
+            setAutoFit(prev => (prev.scale === best.scale && prev.width === best.width) ? prev : { scale: best.scale, width: best.width });
+        }
+    }, [fontScale, processedData, padding, showContext, transparentExport, layoutTick]);
 
     // Toast Auto-Dismiss
     useEffect(() => {
@@ -652,6 +696,7 @@ const EditorOverlay = ({ data, onClose }: { data: TweetData, onClose: () => void
                     <div className="xcard-preview-area">
                         <div
                             ref={cardRef}
+                            onLoadCapture={() => setLayoutTick(n => n + 1)}
                             className={`xcard-card-container ${isExporting ? 'xcard-exporting' : ''}`}
                             style={{ background, padding: PADDINGS[padding] }}
                         >
@@ -663,7 +708,7 @@ const EditorOverlay = ({ data, onClose }: { data: TweetData, onClose: () => void
 
                             <div
                                 className={`xcard-tweet-card ${theme === 'dark' ? 'xcard-dark' : theme === 'glass' ? 'xcard-glass' : ''} ${captureMode === 'background-only' ? 'xcard-hide-content' : ''}`}
-                                style={{ '--xcard-fs': FONT_SCALES[fontScale] } as React.CSSProperties}
+                                style={{ '--xcard-fs': cardScale, '--xcard-w': `${cardWidth}px` } as React.CSSProperties}
                             >
 
                                 {/* FAKE BLUR BACKGROUND LAYER (Only visible during 2nd pass of export) */}
@@ -863,6 +908,13 @@ const EditorOverlay = ({ data, onClose }: { data: TweetData, onClose: () => void
                                 <button className={padding === 'L' ? 'active' : ''} onClick={() => setPadding('L')}>L</button>
                             </div>
                             <div className="xcard-toggle-group">
+                                <button
+                                    className={fontScale === 'auto' ? 'active' : ''}
+                                    onClick={() => setFontScale('auto')}
+                                    title={`${Math.round(16 * cardScale)}px / ${cardWidth}px`}
+                                >
+                                    <Type size={14} /> <span>{t('autoFont')}</span>
+                                </button>
                                 {(Object.keys(FONT_SCALES) as (keyof typeof FONT_SCALES)[]).map(k => (
                                     <button key={k} className={fontScale === k ? 'active' : ''} onClick={() => setFontScale(k)}>
                                         <Type size={14} /> <span>{k}</span>

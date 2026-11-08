@@ -207,9 +207,9 @@
   color: black;
   padding: 32px;
   border-radius: 20px;
-  width: 600px !important;
-  min-width: 600px !important;
-  max-width: 600px !important;
+  width: var(--xcard-w, 600px) !important;
+  min-width: var(--xcard-w, 600px) !important;
+  max-width: var(--xcard-w, 600px) !important;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
   transition: all 0.3s ease;
   overflow: hidden;
@@ -307,8 +307,9 @@
 }
 
 .xcard-avatar {
-  width: 48px;
-  height: 48px;
+  /* grows at half the rate of the text so big fonts don't get a huge avatar */
+  width: calc(48px * (1 + (var(--xcard-fs, 1) - 1) / 2));
+  height: calc(48px * (1 + (var(--xcard-fs, 1) - 1) / 2));
   border-radius: 50%;
   border: 1px solid rgba(0, 0, 0, 0.05);
   object-fit: cover;
@@ -342,8 +343,8 @@
 
 .xcard-handle {
   color: #536471;
-  font-size: 14px;
-  line-height: 20px;
+  font-size: calc(14px * var(--xcard-fs, 1));
+  line-height: 1.4;
 }
 
 .xcard-dark .xcard-handle {
@@ -515,7 +516,7 @@
 }
 
 .xcard-parent .xcard-handle {
-  font-size: 13px;
+  font-size: calc(13px * var(--xcard-fs, 1));
 }
 
 .xcard-parent .xcard-tweet-content {
