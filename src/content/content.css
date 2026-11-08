@@ -207,9 +207,9 @@
   color: black;
   padding: 32px;
   border-radius: 20px;
-  width: var(--xcard-w, 600px) !important;
-  min-width: var(--xcard-w, 600px) !important;
-  max-width: var(--xcard-w, 600px) !important;
+  width: 600px !important;
+  min-width: 600px !important;
+  max-width: 600px !important;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
   transition: all 0.3s ease;
   overflow: hidden;
